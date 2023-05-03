@@ -1,7 +1,6 @@
 import requests
 import json
 import tkinter as tk
-import time
 
 # Function to update the available versions based on whether snapshots are selected or not
 response = requests.get("https://meta.fabricmc.net/v2/versions/game")
