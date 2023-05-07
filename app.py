@@ -9,9 +9,6 @@ from PIL import Image, ImageTk
 import io
 
 
-# Set up logging
-
-
 # Function to update the available versions based on whether snapshots are selected or not
 response = requests.get("https://meta.fabricmc.net/v2/versions/game")
 data = response.json()
@@ -52,7 +49,7 @@ def sort_changed(*args):
 
 
 def type_changed(*args):
-    global project_type
+    global selected_type_final
     selected_type_final = selected_type.get()
     print(f'Selected Version: {selected_type_final}')
     return selected_type
@@ -62,7 +59,7 @@ def type_changed(*args):
 
 
 def search_modrinth(*args):
-    global query_textbox_final, selected_version_final, data, hit, url, search_params
+    global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final
     facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"]]'
     api_endpoint = "https://api.modrinth.com/v2/search"
     search_params = {
@@ -76,7 +73,7 @@ def search_modrinth(*args):
     data = json.loads(response.content)
     hit = data["hits"]
     print(
-        f"Searching with: Selected version {selected_version_final}, Selected sort {selected_sort_final}, Query {query_textbox_final}, Project Type {selected_type_final}, Version {selected_version_final}")
+        f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n-----------------")
     display_results(data)
 
 
