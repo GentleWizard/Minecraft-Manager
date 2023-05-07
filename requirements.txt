@@ -1,0 +1,8 @@
+logging
+requests
+json
+tkinter
+urllib3
+Pillow
+webbrowser
+io
