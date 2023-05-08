@@ -12,9 +12,15 @@ import io
 # Function to update the available versions based on whether snapshots are selected or not
 response = requests.get("https://meta.fabricmc.net/v2/versions/game")
 version_data = response.json()
+
+# Get stable versions
 versions = [v["version"] for v in version_data if v["stable"]]
+
+# Sorting options
 sort_options = ["relevance", "downloads", "updated", "newest"]
 type_options = ["mod", "modpack", "resourcepack", "shader"]
+
+# Pagination
 offset = 0
 itterations = 0
 button_data_list = {}
@@ -24,8 +30,6 @@ page_number_nums = ""
 
 
 # Function to clear the text in the search query textbox
-
-
 def clear_text(*args):
     for text_widget in args:
         text_widget.delete("1.0", tk.END)
@@ -139,10 +143,13 @@ def open_link(index):
 
 
 def display_results(data):
-    if results_frame.winfo_exists():
-        print("results_frame exists!")
-    else:
-        print("results)frame does not exist.")
+    try:
+        if results_frame.winfo_exists():
+            print("results_frame exists!")
+        else:
+            print("results)frame does not exist.")
+    except Exception as e:
+        print("Error checking if results_frame exists:", e)
     for (i, hit) in enumerate(data["hits"]):
         global project_data, results, results_frame_list, itterations
         itterations += 1
@@ -259,20 +266,26 @@ def previous_page():
         page_number_func()
 
 
+# Define window dimensions
 window_width = 700
 window_height = 497
-# Create the root window
+
+# Create the root window and get screen dimensions
 root = tk.Tk()
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
+
+# Calculate screen position of root window
 screen_y = (screen_height - window_height)
 screen_x = (screen_width // 2 - window_width)
+
+# Configure root window settings
 root.geometry(f"700x497+{screen_y}+{screen_x}")
 root.minsize(700, 497)
 root.maxsize(700, 497)
 root.configure(background="gray")
-print(f"width:{screen_height}, height:{screen_width}\n /width: {screen_x}, /height: {screen_y}")
 
+# Create frames for search results, navigation, and search bar
 results_frame = tk.Frame(root, background="gray")
 nav_frame = tk.Frame(root, background="#84898D", relief="solid", borderwidth=1)
 search_frame = tk.Frame(root, width=700, height=100,
@@ -296,6 +309,7 @@ query_text = tk.Entry(search_frame, textvariable=query_textbox, width=30,)
 search_button = tk.Button(search_frame, text="Search",
                           command=search_button_fix, background="#ACB3B8")
 
+# Create dropdown menus for sorting and filtering search results
 selected_sort = tk.StringVar()
 selected_sort.set(sort_options[0])
 sort_dropdown = tk.OptionMenu(search_frame, selected_sort, *sort_options)
@@ -312,24 +326,27 @@ type_dropdown.config(background="#ACB3B8", relief="raised",
 selected_type.trace("w", type_changed)
 selected_type_final = selected_type.get()
 
+# Create navigation buttons and page number label
 prev_page_button = tk.Button(
     nav_frame, text="<<", background="#ACB3B8", command=previous_page, width=5, height=1)
 next_page_button = tk.Button(
     nav_frame, text=">>", background="#ACB3B8", command=next_page, width=5, height=1)
 page_number = tk.Label(nav_frame, text=page_number_nums,
                        width=5, height=1, background="gray")
+
+# Pack navigation widgets into their frame
 next_page_button.pack(side="right")
 prev_page_button.pack(side="left")
 page_number.pack(side="left", padx=280)
-# Pack the widgets in the search bar frame
+
+# Pack search bar widgets into their frame
 sort_dropdown.pack(side="left", padx=4)
 type_dropdown.pack(side="left", padx=0)
 version_dropdown.pack(side="left", padx=4)
 search_button.pack(side='right', padx=4)
 query_text.pack(side="right", padx=4)
 
-
-# Pack the search bar and search results frames
+# Pack search bar and search results frames, and navigation frame at the bottom
 search_frame.pack(fill="both", side="top")
 results_frame.pack(fill="both")
 nav_frame.pack(fill="both", side="bottom")
