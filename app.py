@@ -26,7 +26,6 @@ itterations = 0
 button_data_list = {}
 Wiki_data_list = {}
 image_data_list = []
-page_number_nums = ""
 
 
 # Function to clear the text in the search query textbox
@@ -85,7 +84,7 @@ def search_modrinth(*args):
         itterations = 0
         search_modrinth()
     else:
-        global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final
+        global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final, total, offset
         facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"]]'
         api_endpoint = "https://api.modrinth.com/v2/search"
         search_params = {
@@ -99,11 +98,12 @@ def search_modrinth(*args):
         response = requests.get(api_endpoint, params=search_params)
         data = json.loads(response.content)
         hit = data["hits"]
+        total = data["total_hits"]
 
         print(
             f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n-----------------")
         display_results(data)
-        page_number_func(data)
+        page_number_func(offset)
         return data
 
 
@@ -194,7 +194,7 @@ def display_results(data):
 
         # Display the mod description
         results_description = tk.Text(results, state="normal", wrap="word", height=5,
-                                      width=50, border=0, font=("Arial", 10), padx=10, fg="white", background="#999999")
+                                      width=50, border=0, font=("Arial", 10, "bold"), padx=10, fg="white", background="#999999")
         results_description.insert(tk.END, f'{hit["description"]}')
         results_description.pack(fill="x", expand=True)
         results_description.config(state="disabled")
@@ -233,15 +233,26 @@ def display_results(data):
         results.pack(fill="both")
 
 
-def page_number_func(data):
-    global page_number_nums
-    total = data["total_hits"]
+def page_number_func(offset):
+    global page_number
     if offset == 0:
-        page = 1
+        rounded_page = 1
     else:
-        page = offset - 2
-    page_number_nums = f'{page} / {total}'
-    return page_number_nums
+        page = 1 + ((offset - 1) / 3)
+        rounded_page = round(page)
+        print(page)
+    if 'page_number' not in globals() or not page_number.winfo_exists():
+        page_number = tk.Label(nav_frame)
+        page_number.pack(side="left", padx=280)
+    else:
+        page_number.destroy()
+        page_number = tk.Label(nav_frame)
+        page_number.pack(side="left", padx=280)
+    page_number_nums = f'{rounded_page} / {int(total / 3)}'
+    page_number.config(text=page_number_nums, background="#84898D",
+                       height=1, width=5, font=("Arial", 10, "bold"))
+    print(page_number_nums)
+    return
 
 
 def next_page():
@@ -251,7 +262,6 @@ def next_page():
     else:
         offset += 3
         search_modrinth()
-        page_number_func()
     return offset
 
 
@@ -263,7 +273,7 @@ def previous_page():
     else:
         offset -= 3
         search_modrinth()
-        page_number_func()
+    return offset
 
 
 # Define window dimensions
@@ -296,25 +306,26 @@ selected_version = tk.StringVar()
 selected_version.set(versions[0])
 version_dropdown = tk.OptionMenu(search_frame, selected_version, *versions)
 version_dropdown.config(background="#ACB3B8", relief="raised",
-                        borderwidth=1, highlightthickness=0, width=10)
+                        borderwidth=1, highlightthickness=0, width=10, font=("Arial", 10, "bold"))
 selected_version.trace("w", version_changed)
 selected_version_final = selected_version.get()
 
 # Create a textbox for entering search queries
 query_textbox = tk.StringVar()
 query_textbox.trace("w", query_changed)
-query_text = tk.Entry(search_frame, textvariable=query_textbox, width=30,)
+query_text = tk.Entry(search_frame, textvariable=query_textbox,
+                      width=30, font=("Arial", 10, "bold"))
 
 # Create a button to perform the mod search
 search_button = tk.Button(search_frame, text="Search",
-                          command=search_button_fix, background="#ACB3B8")
+                          command=search_button_fix, background="#ACB3B8", font=("Arial", 10, "bold"))
 
 # Create dropdown menus for sorting and filtering search results
 selected_sort = tk.StringVar()
 selected_sort.set(sort_options[0])
 sort_dropdown = tk.OptionMenu(search_frame, selected_sort, *sort_options)
 sort_dropdown.config(background="#ACB3B8", relief="raised",
-                     borderwidth=1, highlightthickness=0)
+                     borderwidth=1, highlightthickness=0, font=("Arial", 10, "bold"))
 selected_sort.trace("w", sort_changed)
 selected_sort_final = selected_sort.get()
 
@@ -322,22 +333,20 @@ selected_type = tk.StringVar()
 selected_type.set(type_options[0])
 type_dropdown = tk.OptionMenu(search_frame, selected_type, *type_options)
 type_dropdown.config(background="#ACB3B8", relief="raised",
-                     borderwidth=1, highlightthickness=0)
+                     borderwidth=1, highlightthickness=0, font=("Arial", 10, "bold"))
 selected_type.trace("w", type_changed)
 selected_type_final = selected_type.get()
 
 # Create navigation buttons and page number label
 prev_page_button = tk.Button(
-    nav_frame, text="<<", background="#ACB3B8", command=previous_page, width=5, height=1)
+    nav_frame, text="<<", background="#ACB3B8", command=previous_page, width=5, height=1, font=("Arial", 10, "bold"))
 next_page_button = tk.Button(
-    nav_frame, text=">>", background="#ACB3B8", command=next_page, width=5, height=1)
-page_number = tk.Label(nav_frame, text=page_number_nums,
-                       width=5, height=1, background="gray")
+    nav_frame, text=">>", background="#ACB3B8", command=next_page, width=5, height=1, font=("Arial", 10, "bold"))
+
 
 # Pack navigation widgets into their frame
 next_page_button.pack(side="right")
 prev_page_button.pack(side="left")
-page_number.pack(side="left", padx=280)
 
 # Pack search bar widgets into their frame
 sort_dropdown.pack(side="left", padx=4)
