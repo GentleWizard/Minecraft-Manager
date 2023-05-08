@@ -11,8 +11,8 @@ import io
 
 # Function to update the available versions based on whether snapshots are selected or not
 response = requests.get("https://meta.fabricmc.net/v2/versions/game")
-data = response.json()
-versions = [v["version"] for v in data if v["stable"]]
+version_data = response.json()
+versions = [v["version"] for v in version_data if v["stable"]]
 sort_options = ["relevance", "downloads", "updated", "newest"]
 type_options = ["mod", "modpack", "resourcepack", "shader"]
 offset = 0
@@ -20,6 +20,7 @@ itterations = 0
 button_data_list = {}
 Wiki_data_list = {}
 image_data_list = []
+page_number_nums = ""
 
 
 # Function to clear the text in the search query textbox
@@ -62,6 +63,10 @@ def type_changed(*args):
 
 
 # Function called when the user clicks the search button
+def search_button_fix():
+    global offset
+    offset = 0
+    search_modrinth()
 
 
 def search_modrinth(*args):
@@ -75,7 +80,6 @@ def search_modrinth(*args):
         image_data_list = []
         itterations = 0
         search_modrinth()
-        print(itterations)
     else:
         global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final
         facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"]]'
@@ -91,14 +95,12 @@ def search_modrinth(*args):
         response = requests.get(api_endpoint, params=search_params)
         data = json.loads(response.content)
         hit = data["hits"]
-        if offset == 0:
-            page = 1
-        else:
-            page = offset - 2
+
         print(
-            f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n page: {page} / {data['total_hits']}\n-----------------")
-        print(itterations)
+            f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n-----------------")
         display_results(data)
+        page_number_func(data)
+        return data
 
 
 def Download(index):
@@ -224,6 +226,17 @@ def display_results(data):
         results.pack(fill="both")
 
 
+def page_number_func(data):
+    global page_number_nums
+    total = data["total_hits"]
+    if offset == 0:
+        page = 1
+    else:
+        page = offset - 2
+    page_number_nums = f'{page} / {total}'
+    return page_number_nums
+
+
 def next_page():
     global offset
     if offset == data["total_hits"]:
@@ -231,6 +244,7 @@ def next_page():
     else:
         offset += 3
         search_modrinth()
+        page_number_func()
     return offset
 
 
@@ -242,12 +256,22 @@ def previous_page():
     else:
         offset -= 3
         search_modrinth()
+        page_number_func()
 
 
+window_width = 700
+window_height = 497
 # Create the root window
 root = tk.Tk()
-root.geometry("700x500")
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+screen_y = (screen_height - window_height)
+screen_x = (screen_width // 2 - window_width)
+root.geometry(f"700x497+{screen_y}+{screen_x}")
+root.minsize(700, 497)
+root.maxsize(700, 497)
 root.configure(background="gray")
+print(f"width:{screen_height}, height:{screen_width}\n /width: {screen_x}, /height: {screen_y}")
 
 results_frame = tk.Frame(root, background="gray")
 nav_frame = tk.Frame(root, background="#84898D", relief="solid", borderwidth=1)
@@ -270,7 +294,7 @@ query_text = tk.Entry(search_frame, textvariable=query_textbox, width=30,)
 
 # Create a button to perform the mod search
 search_button = tk.Button(search_frame, text="Search",
-                          command=search_modrinth, background="#ACB3B8")
+                          command=search_button_fix, background="#ACB3B8")
 
 selected_sort = tk.StringVar()
 selected_sort.set(sort_options[0])
@@ -292,14 +316,17 @@ prev_page_button = tk.Button(
     nav_frame, text="<<", background="#ACB3B8", command=previous_page, width=5, height=1)
 next_page_button = tk.Button(
     nav_frame, text=">>", background="#ACB3B8", command=next_page, width=5, height=1)
-next_page_button.pack(side="right", padx=10)
-prev_page_button.pack(side="left", padx=10)
+page_number = tk.Label(nav_frame, text=page_number_nums,
+                       width=5, height=1, background="gray")
+next_page_button.pack(side="right")
+prev_page_button.pack(side="left")
+page_number.pack(side="left", padx=280)
 # Pack the widgets in the search bar frame
-sort_dropdown.pack(side="left", padx=2)
-type_dropdown.pack(side="left", padx=2)
-version_dropdown.pack(side="left", padx=2)
-query_text.pack(side="left", padx=2)
-search_button.pack(side='left')
+sort_dropdown.pack(side="left", padx=4)
+type_dropdown.pack(side="left", padx=0)
+version_dropdown.pack(side="left", padx=4)
+search_button.pack(side='right', padx=4)
+query_text.pack(side="right", padx=4)
 
 
 # Pack the search bar and search results frames
