@@ -15,6 +15,12 @@ data = response.json()
 versions = [v["version"] for v in data if v["stable"]]
 sort_options = ["relevance", "downloads", "updated", "newest"]
 type_options = ["mod", "modpack", "resourcepack", "shader"]
+offset = 0
+itterations = 0
+button_data_list = {}
+Wiki_data_list = {}
+image_data_list = []
+
 
 # Function to clear the text in the search query textbox
 
@@ -59,22 +65,40 @@ def type_changed(*args):
 
 
 def search_modrinth(*args):
-    global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final
-    facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"]]'
-    api_endpoint = "https://api.modrinth.com/v2/search"
-    search_params = {
-        "query": query_textbox_final,
-        "index": selected_sort_final,
-        "facets": facets,
-        "limit": 3,
-    }
-    # Make the request to the API
-    response = requests.get(api_endpoint, params=search_params)
-    data = json.loads(response.content)
-    hit = data["hits"]
-    print(
-        f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n-----------------")
-    display_results(data)
+    global results_frame, itterations, button_data_list, Wiki_data_list, image_data_list, offset
+    if itterations >= 3:
+        results_frame.destroy()
+        results_frame = tk.Frame(root, background="gray")
+        results_frame.pack(fill="both")
+        button_data_list = {}
+        Wiki_data_list = {}
+        image_data_list = []
+        itterations = 0
+        search_modrinth()
+        print(itterations)
+    else:
+        global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final
+        facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"]]'
+        api_endpoint = "https://api.modrinth.com/v2/search"
+        search_params = {
+            "query": query_textbox_final,
+            "index": selected_sort_final,
+            "facets": facets,
+            "limit": 3,
+            "offset": offset,
+        }
+        # Make the request to the API
+        response = requests.get(api_endpoint, params=search_params)
+        data = json.loads(response.content)
+        hit = data["hits"]
+        if offset == 0:
+            page = 1
+        else:
+            page = offset - 2
+        print(
+            f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n page: {page} / {data['total_hits']}\n-----------------")
+        print(itterations)
+        display_results(data)
 
 
 def Download(index):
@@ -112,15 +136,15 @@ def open_link(index):
         print("Error")
 
 
-button_data_list = {}
-Wiki_data_list = {}
-image_data_list = []
-
-
 def display_results(data):
-    # Function to display the search results
-    for i, hit in enumerate(data["hits"]):
-        global project_data, results, results_frame_list
+    if results_frame.winfo_exists():
+        print("results_frame exists!")
+    else:
+        print("results)frame does not exist.")
+    for (i, hit) in enumerate(data["hits"]):
+        global project_data, results, results_frame_list, itterations
+        itterations += 1
+        print(f"mod: {i + 1} of {len(data['hits'])}")
         # Create a frame for the search results
         results = tk.Frame(results_frame, pady=6, border=1,
                            relief="solid", background="gray")
@@ -194,16 +218,30 @@ def display_results(data):
             results, text=f"Download", background="lightgray", command=lambda index=i: Download(index))
         results_download_button.pack(side="right", padx=3)
 
+        print(hit["title"])
+
         # pack the results frame
         results.pack(fill="both")
 
 
 def next_page():
-    return
+    global offset
+    if offset == data["total_hits"]:
+        return
+    else:
+        offset += 3
+        search_modrinth()
+    return offset
 
 
 def previous_page():
-    return
+    global offset
+    if offset == 0:
+        prev_page_button.destroy()
+        return
+    else:
+        offset -= 3
+        search_modrinth()
 
 
 # Create the root window
@@ -250,10 +288,10 @@ type_dropdown.config(background="#ACB3B8", relief="raised",
 selected_type.trace("w", type_changed)
 selected_type_final = selected_type.get()
 
-next_page_button = tk.Button(
-    nav_frame, text=">>", background="#ACB3B8", command=next_page, width=5, height=1)
 prev_page_button = tk.Button(
     nav_frame, text="<<", background="#ACB3B8", command=previous_page, width=5, height=1)
+next_page_button = tk.Button(
+    nav_frame, text=">>", background="#ACB3B8", command=next_page, width=5, height=1)
 next_page_button.pack(side="right", padx=10)
 prev_page_button.pack(side="left", padx=10)
 # Pack the widgets in the search bar frame
@@ -269,5 +307,5 @@ search_frame.pack(fill="both", side="top")
 results_frame.pack(fill="both")
 nav_frame.pack(fill="both", side="bottom")
 
-# Start the main event loop
+
 root.mainloop()
