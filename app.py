@@ -113,7 +113,6 @@ def search_modrinth(*args):
                 f"-----------------\nSelected version: {selected_version_final}\nSelected sort: {selected_sort_final}\nQuery: {query_textbox_final}\nProject Type: {selected_type_final}\nLoader: {selected_loader_final}\n-----------------")
             display_results(data)
             page_number_func(offset)
-            print(offset)
             searched = True
             return
         except NameError:
@@ -149,7 +148,6 @@ def on_Load_app():
         data = json.loads(response.content)
         total = data["total_hits"]
         hit = data["hits"]
-        print(offset)
         searched = True
         display_results(data)
         page_number_func(offset)
@@ -352,7 +350,10 @@ def page_number_func(offset):
         page_number.destroy()
         page_number = tk.Label(nav_frame)
         page_number.pack(side="left", padx=280)
-    page_number_nums = f'{rounded_page} / {int(total / 3)}'
+    if int(total / 3) == 0:
+        page_number_nums = f'{rounded_page} / 1'
+    else:
+        page_number_nums = f'{rounded_page} / {int(total / 3)}'
     page_number.config(text=page_number_nums, background="#84898D",
                        height=1, width=5, font=("Arial", 10, "bold"))
     return
