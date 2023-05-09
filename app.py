@@ -5,8 +5,8 @@ import requests
 import json
 import tkinter as tk
 import urllib.request
-from PIL import Image, ImageTk
 import io
+from PIL import Image, ImageTk
 
 
 # Function to update the available versions based on whether snapshots are selected or not
@@ -19,6 +19,7 @@ versions = [v["version"] for v in version_data if v["stable"]]
 # Sorting options
 sort_options = ["relevance", "downloads", "updated", "newest"]
 type_options = ["mod", "modpack", "resourcepack", "shader"]
+loader_options = ["fabric", "forge", "quilt"]
 
 # Pagination
 offset = 0
@@ -48,21 +49,24 @@ def version_changed(*args):
     global selected_version_final
     selected_version_final = selected_version.get()
     print(f'Selected Version: {selected_version_final}')
-    return selected_version
 
 
 def sort_changed(*args):
     global selected_sort_final
     selected_sort_final = selected_sort.get()
     print(f'Selected Version: {selected_sort_final}')
-    return selected_sort
 
 
 def type_changed(*args):
     global selected_type_final
     selected_type_final = selected_type.get()
     print(f'Selected Version: {selected_type_final}')
-    return selected_type
+
+
+def loader_changed(*args):
+    global selected_loader_final
+    selected_loader_final = loader_type.get()
+    print(f'Selected Version: {selected_loader_final}')
 
 
 # Function called when the user clicks the search button
@@ -72,9 +76,13 @@ def search_button_fix():
     search_modrinth()
 
 
+data = []
+searched = False
+
+
 def search_modrinth(*args):
-    global results_frame, itterations, button_data_list, Wiki_data_list, image_data_list, offset
-    if itterations >= 3:
+    global results_frame, itterations, button_data_list, Wiki_data_list, image_data_list
+    if itterations > 0:
         results_frame.destroy()
         results_frame = tk.Frame(root, background="gray")
         results_frame.pack(fill="both")
@@ -84,27 +92,77 @@ def search_modrinth(*args):
         itterations = 0
         search_modrinth()
     else:
-        global query_textbox_final, selected_version_final, data, hit, url, search_params, selected_type_final, total, offset
-        facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"]]'
-        api_endpoint = "https://api.modrinth.com/v2/search"
+        try:
+            global data, hit, total, searched
+            facets = f'[["versions:{selected_version_final}"], ["project_type:{selected_type_final}"],["categories:{selected_loader_final}"]]'
+            api_endpoint = "https://api.modrinth.com/v2/search"
+            search_params = {
+                "query": query_textbox_final,
+                "index": selected_sort_final,
+                "facets": facets,
+                "limit": 3,
+                "offset": offset,
+            }
+            # Make the request to the API
+            response = requests.get(api_endpoint, params=search_params)
+            data = json.loads(response.content)
+            hit = data["hits"]
+            total = data["total_hits"]
+
+            print(
+                f"-----------------\nSelected version: {selected_version_final}\nSelected sort: {selected_sort_final}\nQuery: {query_textbox_final}\nProject Type: {selected_type_final}\nLoader: {selected_loader_final}\n-----------------")
+            display_results(data)
+            page_number_func(offset)
+            print(offset)
+            searched = True
+            return
+        except NameError:
+            on_Load_app()
+            return
+
+
+def on_Load_app():
+    global button_data_list, Wiki_data_list, image_data_list, itterations, results_frame
+    if itterations > 0:
+        results_frame.destroy()
+        results_frame = tk.Frame(root, background="gray")
+        results_frame.pack(fill="both")
+        button_data_list = {}
+        Wiki_data_list = {}
+        image_data_list = []
+        itterations = 0
+        on_Load_app()
+    else:
+        global data, hit, total, searched
+        version = versions[0]
+        project_type = "mod"
+        loader_type = "fabric"
+        facets = f'[["versions:{version}"], ["project_type:{project_type}"],["categories:{loader_type}"]]'
+        api_endpoint = f"https://api.modrinth.com/v2/search"
         search_params = {
-            "query": query_textbox_final,
-            "index": selected_sort_final,
+            "index": "relevance",
             "facets": facets,
             "limit": 3,
             "offset": offset,
         }
-        # Make the request to the API
         response = requests.get(api_endpoint, params=search_params)
         data = json.loads(response.content)
-        hit = data["hits"]
         total = data["total_hits"]
-
-        print(
-            f"-----------------\n Selected version: {selected_version_final}\n Selected sort: {selected_sort_final}\n Query: {query_textbox_final}\n Project Type: {selected_type_final}\n Version: {selected_version_final}\n-----------------")
+        hit = data["hits"]
+        print(offset)
+        searched = True
         display_results(data)
         page_number_func(offset)
-        return data
+
+
+def download_version_changed(*args):
+    global selected_download_version_final
+    selected_download_version_final = selected_version.get()
+    print(f'Selected Version: {selected_download_version_final}')
+
+
+def download_file(url, name):
+    print(f"Downloading {name} from {url}")
 
 
 def Download(index):
@@ -112,15 +170,69 @@ def Download(index):
     Download_modal = tk.Toplevel(results_frame)
     Download_modal.title("Download")
     Download_modal.geometry("300x200")
-
     data = button_data_list[index]
-    title = data[0]
-    version = data[1]
+    slug = data[0]
+    title = data[1]
 
-    Download_modal_label = tk.Label(Download_modal, text=f"{title}, {version}")
-    Download_modal_label.pack(padx=20, pady=20)
+    project_id = slug
+    api_endpoint = f"https://api.modrinth.com/v2/project/{project_id}/version"
+    response = requests.get(api_endpoint)
+    data_download = json.loads(response.content)
 
-    print(button_data_list[index])
+    download_label = tk.Label(Download_modal, text=f"Downloading: {title}")
+    download_label.pack()
+    dependency_info = []
+    version_info = []
+    # for version in data_download:
+    #     if selected_version_final in version["game_versions"]:
+    #         if selected_loader_final in version["loaders"]:
+    #             version_name = version["name"]
+    #             version_number = version["version_number"]
+    #             loader = version["loaders"]
+    #             for depends in version["dependencies"]:
+    #                 if version_number[version_number] == version_id:
+    #                     print(f"Processing dependency: {depends}")
+    #                     dependency_info.append({
+    #                         "dependency_type_dep": depends["dependency_type"],
+    #                         "project_id_dep": depends["project_id"],
+    #                         "version_id_dep": depends["version_id"],
+    #                         "file_name_dep": depends["file_name"]
+    #                     })
+    #                     api_mod_endpoint = f"https://api.modrinth.com/v2/project/{dependency_info[0]}/version"
+    #                     response_mod = requests.get(api_mod_endpoint)
+    #                     data_mod = json.loads(response_mod.content)
+    #                     if dependency_info[0] == "required":
+    #                         for version_mod in data_mod:
+    #                             version_id = version_mod["version_id"]
+    #                             if dependency_info[2] == version_id:
+    #                                 print(dependency_info[2])
+    #                                 file_url_mod = version_mod["files"][0]["url"]
+    #                                 file_name_mod = version_mod["files"][0]["filename"]
+    #                                 for dependantcies in dependency_info:
+    #                                     print(dependantcies["version_name"])
+    #                                     dependantcies_download_button = tk.Button(
+    #                                         Download_modal, text=f"Download: {dependantcies['version_name']}", command=lambda: download_file(file_url_mod, file_name_mod))
+    #                                     version_mod_label = tk.Label(
+    #                                         text=f":Dependency: {dependantcies['version_name']}")
+    #                                     version_mod_label.pack()
+    #             for file in version["files"]:
+    #                 file_url = file["url"]
+    #                 file_name = file["filename"]
+
+    #                 version_info.append({
+    #                     "name": version_name,
+    #                     "version_number": version_number,
+    #                     "file_url": file_url,
+    #                     "file_name": file_name
+    #                 })
+
+    version_number = [info["version_number"] for info in version_info]
+    selected_version = tk.StringVar(root)
+    selected_version.set(version_number[0])
+    download_dropdown = tk.OptionMenu(
+        Download_modal, selected_version, *version_number)
+    download_dropdown.config(font=("Arial"))
+    download_dropdown.pack()
 
     Download_modal.grab_set()
     Download_modal.mainloop()
@@ -143,17 +255,10 @@ def open_link(index):
 
 
 def display_results(data):
-    try:
-        if results_frame.winfo_exists():
-            print("results_frame exists!")
-        else:
-            print("results)frame does not exist.")
-    except Exception as e:
-        print("Error checking if results_frame exists:", e)
     for (i, hit) in enumerate(data["hits"]):
         global project_data, results, results_frame_list, itterations
         itterations += 1
-        print(f"mod: {i + 1} of {len(data['hits'])}")
+        print(f"mod: {i + 1} of {len(data['hits'])} Loaded")
         # Create a frame for the search results
         results = tk.Frame(results_frame, pady=6, border=1,
                            relief="solid", background="gray")
@@ -162,8 +267,9 @@ def display_results(data):
         project_data = json.loads(response.content)
 
         # Display the mod title
-        results_Title = tk.Label(results, state="normal", wraplength=500, justify="left", anchor="nw",
-                                 text=f'{hit["title"]}', background="gray", font=("Arial", 12, "bold"), fg="white", padx=10)
+        results_Title = tk.Label(results, state="normal", wraplength=500, justify="left",
+                                 anchor="nw", text=f'{hit["title"]}', background="gray",
+                                 font=("Arial", 12, "bold"), fg="white", padx=10)
         results_Title.pack(expand=True)
 
         # Display the mod icon
@@ -222,25 +328,23 @@ def display_results(data):
         results_view_button.pack(side="right", padx=3)
 
         # Display the mod download
-        button_data_list[i] = hit["title"], hit["versions"][-1]
+        button_data_list[i] = hit["slug"], hit["title"]
         results_download_button = tk.Button(
             results, text=f"Download", background="lightgray", command=lambda index=i: Download(index))
         results_download_button.pack(side="right", padx=3)
-
-        print(hit["title"])
 
         # pack the results frame
         results.pack(fill="both")
 
 
 def page_number_func(offset):
-    global page_number
+    global page_number, rounded_page
     if offset == 0:
         rounded_page = 1
     else:
         page = 1 + ((offset - 1) / 3)
         rounded_page = round(page)
-        print(page)
+
     if 'page_number' not in globals() or not page_number.winfo_exists():
         page_number = tk.Label(nav_frame)
         page_number.pack(side="left", padx=280)
@@ -251,29 +355,27 @@ def page_number_func(offset):
     page_number_nums = f'{rounded_page} / {int(total / 3)}'
     page_number.config(text=page_number_nums, background="#84898D",
                        height=1, width=5, font=("Arial", 10, "bold"))
-    print(page_number_nums)
     return
 
 
 def next_page():
     global offset
-    if offset == data["total_hits"]:
+    if rounded_page == int(total / 3):
         return
-    else:
+    elif searched == True:
         offset += 3
         search_modrinth()
-    return offset
+    else:
+        on_Load_app()
 
 
 def previous_page():
     global offset
     if offset == 0:
-        prev_page_button.destroy()
         return
     else:
         offset -= 3
         search_modrinth()
-    return offset
 
 
 # Define window dimensions
@@ -306,7 +408,7 @@ selected_version = tk.StringVar()
 selected_version.set(versions[0])
 version_dropdown = tk.OptionMenu(search_frame, selected_version, *versions)
 version_dropdown.config(background="#ACB3B8", relief="raised",
-                        borderwidth=1, highlightthickness=0, width=10, font=("Arial", 10, "bold"))
+                        borderwidth=1, highlightthickness=0, font=("Arial", 10, "bold"))
 selected_version.trace("w", version_changed)
 selected_version_final = selected_version.get()
 
@@ -337,6 +439,15 @@ type_dropdown.config(background="#ACB3B8", relief="raised",
 selected_type.trace("w", type_changed)
 selected_type_final = selected_type.get()
 
+loader_type = tk.StringVar()
+loader_type.set(loader_options[0])
+loader_dropdown = tk.OptionMenu(search_frame, loader_type, *loader_options)
+loader_dropdown.config(background="#ACB3B8", relief="raised",
+                       borderwidth=1, highlightthickness=0, font=("Arial", 10, "bold"))
+loader_type.trace("w", loader_changed)
+loader_type_final = loader_type.get()
+loader_changed()
+
 # Create navigation buttons and page number label
 prev_page_button = tk.Button(
     nav_frame, text="<<", background="#ACB3B8", command=previous_page, width=5, height=1, font=("Arial", 10, "bold"))
@@ -354,11 +465,12 @@ type_dropdown.pack(side="left", padx=0)
 version_dropdown.pack(side="left", padx=4)
 search_button.pack(side='right', padx=4)
 query_text.pack(side="right", padx=4)
+loader_dropdown.pack(side="left", padx=0)
 
 # Pack search bar and search results frames, and navigation frame at the bottom
 search_frame.pack(fill="both", side="top")
 results_frame.pack(fill="both")
 nav_frame.pack(fill="both", side="bottom")
 
-
+on_Load_app()
 root.mainloop()
