@@ -1,47 +1,13 @@
 # This program is for managing Minecraft mods.
+import asyncio
+import time
 import tkinter as tk
-from dataclasses import dataclass
 
-from async_tkinter_loop import async_mainloop
+from async_tkinter_loop import async_handler, async_mainloop
 
-from src.footer import Footer
-from src.header import Header
+from src.filter import FilterBar
 from src.results import Results
-
-
-@dataclass
-class Mod:
-	def __init__(self,
-				 name: str,
-				 description: str,
-				 author: str,
-				 urls: list,
-				 scope: list[bool, bool],
-				 downloads: int,
-				 id: int,
-				 icon: str
-				 ):
-		"""
-		A class for storing mod data.
-
-		:param name: The name of the mod.
-		:param description: The description of the mod.
-		:param author: The author of the mod.
-		:param urls: Any urls that the mod has.
-		:param scope: Whether the mod is client-side or server-side. (client-side, server-side)
-		:param downloads: how many downloads the mod has.
-		:param id: The id of the mod.
-		:param icon: The icon of the mod.
-		"""
-		self.name = name
-		self.description = description
-		self.author = author
-		self.url = urls
-		self.client_side = scope[0]
-		self.server_side = scope[1]
-		self.downloads = downloads
-		self.id = id
-		self.icon = icon
+from src.search import modrinth_search
 
 
 class App(tk.Tk):
@@ -49,11 +15,45 @@ class App(tk.Tk):
 		super().__init__()
 		self.title("Minecraft Mod Manager")
 		self.geometry("700x400")
-		self.resizable(False, False)
 
-		self.header = Header(self)
 		self.results = Results(self)
-		self.footer = Footer(self)
+
+		self.facets = []
+		self.search_limit = 10
+		self.search_offset = 0
+		self.results.header.search.bind("<Return>", lambda _: self.search())
+
+		self.sidebar = FilterBar(self)
+		self.sidebar_visible = True
+		self.toggle_filters()
+
+	def toggle_filters(self):
+		if self.sidebar_visible:
+			self.sidebar.pack_forget()  # or grid_remove, or place_forget
+			self.sidebar_visible = False
+		else:
+			self.sidebar.pack(side=tk.LEFT, fill=tk.BOTH)  # or grid, or place
+			self.sidebar_visible = True
+
+	@async_handler
+	async def search(self):
+		query = self.results.header.search.get()
+		search_index = self.results.header.sorting.var.get()
+		self.results.header.search.delete(0, tk.END)
+		self.results.header.search.configure(placeholder_text='Searching...')
+		self.results.header.search.configure(state=tk.DISABLED)
+
+		current_time = time.time()
+		result = await asyncio.create_task(
+			modrinth_search(query, search_index, self.search_limit, self.search_offset))
+		time_taken = time.time() - current_time
+		print(f"Time taken: {time_taken}")
+
+		self.results.header.search.configure(state=tk.NORMAL)
+		self.results.header.search.configure(placeholder_text='Search')
+		self.results.header.search.delete(0, tk.END)
+		self.results.focus_set()
+		self.results.display_projects(result.values())
 
 
 if __name__ == "__main__":
