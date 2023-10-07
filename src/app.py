@@ -10,11 +10,30 @@ from src.results import Results
 from src.search import modrinth_search
 
 
+class LoadingScreen(tk.Toplevel):
+	def __init__(self, master=None):
+		super().__init__(master)
+		self.loading_label = tk.Label(self, text="Loading...", font=("Arial", 20))
+		self.loading_label.pack(fill=tk.BOTH, expand=True)
+		self.wm_attributes("-topmost", True)
+		width = 350
+		height = 150
+		self.geometry(
+			f"{width}x{height}+{(self.winfo_screenwidth() // 2) - (width // 2)}+{(self.winfo_screenheight() // 2) - (height // 2)}")
+
+
 class App(tk.Tk):
-	def __init__(self):
+	def __init__(self, width=700, height=400):
 		super().__init__()
+		self.iconify()
+		loading_screen = LoadingScreen(self)
+		loading_screen.overrideredirect(True)
+
+		self.geometry(
+			f"{width}x{height}+{int((self.winfo_screenwidth() // 2) - (width / 2))}+{int((self.winfo_screenheight() // 2) - (height / 2))}")
+		loading_screen.update()
+
 		self.title("Minecraft Mod Manager")
-		self.geometry("700x400")
 
 		self.results = Results(self)
 
@@ -26,6 +45,9 @@ class App(tk.Tk):
 		self.sidebar = FilterBar(self)
 		self.sidebar_visible = True
 		self.toggle_filters()
+		# loading_screen.destroy()
+		self.deiconify()
+		self.attributes('-topmost', True)
 
 	def toggle_filters(self):
 		if self.sidebar_visible:
@@ -57,5 +79,5 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-	app = App()
+	app = App(width=700, height=400)
 	async_mainloop(app)
