@@ -10,7 +10,7 @@ async def fetch(session, url, **kwargs):
 		return json.loads(data)
 
 
-async def modrinth_search(query: str = None, index: str = "relevance", limit: int = 10, offset: int = 0):
+async def modrinth_search(query: str = None, index: str = "relevance", limit: int = 5, offset: int = 0):
 	query = json.dumps(query)
 	limit = json.dumps(limit)
 	offset = json.dumps(offset)

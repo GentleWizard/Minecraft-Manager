@@ -23,29 +23,31 @@ class LoadingScreen(tk.Toplevel):
 
 
 class App(tk.Tk):
-	def __init__(self, width=700, height=400):
+	def __init__(self, width=800, height=500):
 		super().__init__()
 		self.iconify()
-		loading_screen = LoadingScreen(self)
-		loading_screen.overrideredirect(True)
+		self.loading_screen = LoadingScreen(self)
+		self.loading_screen.overrideredirect(True)
 
 		self.geometry(
 			f"{width}x{height}+{int((self.winfo_screenwidth() // 2) - (width / 2))}+{int((self.winfo_screenheight() // 2) - (height / 2))}")
-		loading_screen.update()
+		self.loading_screen.update()
 
 		self.title("Minecraft Mod Manager")
 
 		self.results = Results(self)
 
 		self.facets = []
-		self.search_limit = 10
+		self.search_limit = 15
 		self.search_offset = 0
 		self.results.header.search.bind("<Return>", lambda _: self.search())
 
+		self.search()
 		self.sidebar = FilterBar(self)
 		self.sidebar_visible = True
 		self.toggle_filters()
-		# loading_screen.destroy()
+
+		self.loading_screen.destroy()
 		self.deiconify()
 		self.attributes('-topmost', True)
 
@@ -53,9 +55,11 @@ class App(tk.Tk):
 		if self.sidebar_visible:
 			self.sidebar.pack_forget()  # or grid_remove, or place_forget
 			self.sidebar_visible = False
+			self.results.manage_what_projects_are_displayed()
 		else:
 			self.sidebar.pack(side=tk.LEFT, fill=tk.BOTH)  # or grid, or place
 			self.sidebar_visible = True
+			self.results.manage_what_projects_are_displayed()
 
 	@async_handler
 	async def search(self):
@@ -79,5 +83,5 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-	app = App(width=700, height=400)
+	app = App(width=825, height=425)
 	async_mainloop(app)
