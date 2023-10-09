@@ -37,7 +37,7 @@ class Results(ctk.CTkFrame):
 		self.wrapper.update_idletasks()
 
 		self.project_width = 250
-		self.project_height = 150
+		self.project_height = 200
 
 	def display_projects(self, projects):
 		# Clear the existing projects
@@ -63,7 +63,8 @@ class Results(ctk.CTkFrame):
 			project.grid(row=i // projects_per_row, column=i % projects_per_row, padx=10, pady=10)
 			project.update_idletasks()
 			for child in project.winfo_children():
-				child.bind("<MouseWheel>", self.on_mousewheel)
+				if not isinstance(child, ctk.CTkTextbox):
+					child.bind("<MouseWheel>", self.on_mousewheel)
 			project.bind("<MouseWheel>", self.on_mousewheel)
 		self.wrapper.create_window((0, 0), window=self.projects_frame, anchor="nw",
 								   width=self.wrapper.winfo_width())
@@ -77,8 +78,20 @@ class ProjectFrame(ctk.CTkFrame):
 	def __init__(self, master: any, project: Project, **kwargs):
 		super().__init__(master, **kwargs)
 		self.project = project
-
-		self.title = ctk.CTkLabel(self, text=project.title, corner_radius=15, font=("Arial", 15))
-		self.title.pack()
-
 		self.pack_propagate(False)
+
+		self.title = ctk.CTkLabel(self, corner_radius=15, font=("Arial", 20), text=project.title)
+		self.title.place(relx=0.5, rely=0.1, anchor=tk.CENTER)
+
+		self.description = ctk.CTkTextbox(self, corner_radius=15, font=("Arial", 12), width=200, height=100)
+		self.description.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+		self.description.insert(tk.END, project.description)
+		self.description.configure(state='disabled')
+
+		self.download_button = ctk.CTkButton(self, text="Download", corner_radius=15, font=("Arial", 10),
+											 command=lambda: print(f"Downloading: {project.title}"), width=10)
+		self.download_button.place(relx=0.9, rely=0.9, anchor=tk.E)
+
+		self.view_button = ctk.CTkButton(self, text="View", corner_radius=15, font=("Arial", 10),
+										 command=lambda: print(f"Viewing: {project.title}"), width=10)
+		self.view_button.place(relx=0.35, rely=0.9, anchor=tk.W)
